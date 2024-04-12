@@ -15,6 +15,7 @@ def test_receiver_activation(alice, charlie, stream):
     assert pre_activation is False
     assert stream.reward_receivers(charlie) is True
 
+
 def test_reverts_for_non_owner(bob, charlie, stream):
     with ape.reverts("dev: only owner"):
         stream.add_receiver(charlie, sender=bob)

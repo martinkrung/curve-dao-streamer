@@ -161,6 +161,6 @@ def accept_transfer_ownership():
     @notice Accept a pending ownership transfer
     """
     owner: address = self.future_owner
-    assert msg.sender == owner, "dev: only owner"
+    assert msg.sender == owner, "dev: only new owner"
 
     self.owner = owner
