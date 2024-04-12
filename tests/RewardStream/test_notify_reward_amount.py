@@ -20,7 +20,7 @@ def test_reward_rate_updates(bob, stream):
     post_notify = stream.reward_rate()
 
     assert post_notify > 0
-    assert post_notify == 10 ** 18 / (86400 * 10)
+    assert post_notify == 10 ** 18 // (86400 * 10)
 
 
 def test_reward_rate_updates_mid_duration(bob, stream):
@@ -28,11 +28,11 @@ def test_reward_rate_updates_mid_duration(bob, stream):
     chain.pending_timestamp += 86400 * 5  # half of the duration
 
     # top up the balance to be 10 ** 18 again
-    stream.notify_reward_amount(10 ** 18 / 2, sender = bob)
+    stream.notify_reward_amount(10 ** 18 // 2, sender = bob)
     post_notify = stream.reward_rate()
 
     # should relatively close .00001 seems about good of a heuristic
-    #assert math.isclose(post_notify, 10 ** 18 / (86400 * 10), rel_tol=0.00001)
+    assert math.isclose(post_notify, 10 ** 18 // (86400 * 10), rel_tol=0.00001)
 
 
 def test_period_finish_updates(bob, stream):
