@@ -58,8 +58,8 @@ def add_receiver(_receiver: address):
          for other receivers.
     @param _receiver Address of the new reward receiver
     """
-    assert msg.sender == self.owner  # dev: only owner
-    assert not self.reward_receivers[_receiver]  # dev: receiver is active
+    assert msg.sender == self.owner,  "dev: only owner"
+    assert not self.reward_receivers[_receiver],  "dev: receiver is active"
     total: uint256 = self._update_per_receiver_total()
 
     self.reward_receivers[_receiver] = True
@@ -74,15 +74,15 @@ def remove_receiver(_receiver: address):
     @dev Removing a receiver distributes any unclaimed rewards to that receiver.
     @param _receiver Address of the reward receiver being removed
     """
-    assert msg.sender == self.owner  # dev: only owner
-    assert self.reward_receivers[_receiver]  # dev: receiver is inactive
+    assert msg.sender == self.owner, "dev: only owner"
+    assert self.reward_receivers[_receiver], "dev: receiver is inactive"
     total: uint256 = self._update_per_receiver_total()
 
     self.reward_receivers[_receiver] = False
     self.receiver_count -= 1
     amount: uint256 = total - self.reward_paid[_receiver]
     if amount > 0:
-        assert ERC20(self.reward_token).transfer(_receiver, amount)  # dev: invalid response
+        assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
     self.reward_paid[_receiver] = 0
 
 
@@ -91,11 +91,11 @@ def get_reward(_receiver: address = msg.sender):
     """
     @notice Claim pending rewards
     """
-    assert self.reward_receivers[_receiver]  # dev: caller is not receiver
+    assert self.reward_receivers[_receiver],  "dev: caller is not receiver"
     total: uint256 = self._update_per_receiver_total()
     amount: uint256 = total - self.reward_paid[_receiver]
     if amount > 0:
-        assert ERC20(self.reward_token).transfer(_receiver, amount)  # dev: invalid response
+        assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
         self.reward_paid[_receiver] = total
 
 
@@ -107,9 +107,9 @@ def notify_reward_amount(_amount: uint256):
          evenly between receivers, over `reward_duration` seconds.
     @param _amount Amount of reward tokens to add
     """
-    assert msg.sender == self.distributor  # dev: only distributor
+    assert msg.sender == self.distributor, "dev: only distributor"
     self._update_per_receiver_total()
-    assert ERC20(self.reward_token).transferFrom(msg.sender, self, _amount)  # dev: invalid response
+    assert ERC20(self.reward_token).transferFrom(msg.sender, self, _amount), "dev: invalid response"
     duration: uint256 = self.reward_duration
     if block.timestamp >= self.period_finish:
         self.reward_rate = _amount / duration
@@ -129,8 +129,8 @@ def set_reward_duration(_duration: uint256):
     @dev Only callable when there is not an active reward period
     @param _duration Number of seconds to distribute rewards over
     """
-    assert msg.sender == self.owner  # dev: only owner
-    assert block.timestamp > self.period_finish  # dev: reward period currently active
+    assert msg.sender == self.owner, "dev: only owner"
+    assert block.timestamp > self.period_finish, "dev: reward period currently active"
     self.reward_duration = _duration
 
 
@@ -140,7 +140,7 @@ def set_reward_distributor(_distributor: address):
     @notice Modify the reward distributor
     @param _distributor Reward distributor
     """
-    assert msg.sender == self.owner  # dev: only owner
+    assert msg.sender == self.owner, "dev: only owner"
     self.distributor = _distributor
 
 
@@ -150,7 +150,7 @@ def commit_transfer_ownership(_owner: address):
     @notice Initiate ownership tansfer of the contract
     @param _owner Address to have ownership transferred to
     """
-    assert msg.sender == self.owner  # dev: only owner
+    assert msg.sender == self.owner, "dev: only owner"
 
     self.future_owner = _owner
 
@@ -161,6 +161,6 @@ def accept_transfer_ownership():
     @notice Accept a pending ownership transfer
     """
     owner: address = self.future_owner
-    assert msg.sender == owner  # dev: only new owner
+    assert msg.sender == owner, "dev: only owner"
 
     self.owner = owner
