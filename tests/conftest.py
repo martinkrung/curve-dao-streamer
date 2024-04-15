@@ -7,8 +7,8 @@ def alice(accounts):
 
 @pytest.fixture(scope="session")
 def bob(accounts):
-    return accounts[2]
+    return accounts[1]
 
 @pytest.fixture(scope="session")
 def charlie(accounts):
-    return accounts[3]
+    return accounts[2]

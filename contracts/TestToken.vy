@@ -37,7 +37,8 @@ minter: address
 
 @external
 def __init__():
-    init_supply: uint256 = 1000000 * 10 ** 18
+    # init_supply: uint256 = 1 * 10 ** 18
+    init_supply: uint256 = 0
     self.name = "Test Token"
     self.symbol = "TEST"
     self.decimals = 18
