@@ -54,9 +54,12 @@ def _update_per_receiver_total() -> uint256:
 
 @internal
 def _reset_reward_ratio():
+    if self.receiver_count == 0:
+        return
     for i in self.receivers:
         self.reward_ratio[i] = 100 / self.receiver_count
-
+    if (100 % self.receiver_count) > 0:
+        self.reward_ratio[self.receivers[self.receiver_count-1]] = self.reward_ratio[self.receivers[self.receiver_count-1]] + (100 % self.receiver_count)
 
 @external
 def add_receiver(_receiver: address):

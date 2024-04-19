@@ -36,7 +36,7 @@ def test_receiver_ratio_activation(alice, bob, charlie, dora, stream):
     assert pre_activation == 0
     assert stream.reward_ratio(bob) == 33
     assert stream.reward_ratio(charlie) == 33
-    assert stream.reward_ratio(dora) == 33
+    assert stream.reward_ratio(dora) == 34
 
 def test_reverts_for_non_owner(bob, charlie, stream):
     with ape.reverts("dev: only owner"):
