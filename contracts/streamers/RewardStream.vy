@@ -20,10 +20,13 @@ reward_rate: public(uint256)
 reward_duration: public(uint256)
 last_update_time: public(uint256)
 reward_per_receiver_total: public(uint256)
+
 receiver_count: public(uint256)
 
 reward_receivers: public(HashMap[address, bool])
 reward_ratio: public(HashMap[address, uint256])
+reward_per_receiver_ratio_total: public(HashMap[address, uint256])
+
 reward_paid: HashMap[address, uint256]
 
 receivers: public(DynArray[address, 8])
@@ -51,6 +54,37 @@ def _update_per_receiver_total() -> uint256:
     self.last_update_time = last_time
 
     return total
+
+@internal
+def update_per_receiver_ratio_total() -> uint256:
+    # Todo: 
+    # update the total reward amount paid per receiver according to the ratio
+    # Make sure ratio is change befor this function is called
+    # return value now makes no sense
+    """
+    @dev Only callable by the ratio_manager. Reward tokens are distributed
+         according to the ratio between receivers, over `reward_duration` seconds.
+    """
+    assert msg.sender == self.ratio_manager, "dev: ratio manager"
+    total: uint256 = 0
+    ratio: uint256 = 0
+    count: uint256 = self.receiver_count
+    
+    if count == 0:
+        return total
+    last_time: uint256 = min(block.timestamp, self.period_finish)
+
+    for receiver_address in self.receivers:
+        total = self.reward_per_receiver_ratio_total[receiver_address]
+        ratio = self.reward_ratio[receiver_address]
+        # what is happening if ratio changes, is total wrong?
+        total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
+        self.reward_per_receiver_ratio_total[receiver_address] = total
+
+    self.last_update_time = last_time
+
+    return total
+
 
 @internal
 def _reset_reward_ratio():
