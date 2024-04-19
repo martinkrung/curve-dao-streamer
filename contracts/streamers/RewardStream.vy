@@ -174,6 +174,15 @@ def set_reward_distributor(_distributor: address):
     assert msg.sender == self.owner, "dev: only owner"
     self.distributor = _distributor
 
+@external
+def set_ratio_manager(_ratio_manager: address):
+    """
+    @notice Modify the ratio manager
+    @param _ratio_manager ratio manager
+    """
+    assert msg.sender == self.owner, "dev: only owner"
+    self.ratio_manager = _ratio_manager
+
 
 @external
 def commit_transfer_ownership(_owner: address):
