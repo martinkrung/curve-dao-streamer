@@ -9,7 +9,7 @@ def reward_token(project, alice, bob):
 
 @pytest.fixture(scope="function")
 def stream(project, alice, bob, reward_token):
-    contract = alice.deploy(project.RewardStream, alice, bob, reward_token, 86400 * 10)
+    contract = alice.deploy(project.RewardStream, alice, bob, alice, reward_token, 86400 * 10)
 
     reward_token.approve(contract, 2 ** 256 - 1, sender=bob )
     return contract

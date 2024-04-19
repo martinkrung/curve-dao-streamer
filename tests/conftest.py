@@ -12,3 +12,7 @@ def bob(accounts):
 @pytest.fixture(scope="session")
 def charlie(accounts):
     return accounts[2]
+
+@pytest.fixture(scope="session")
+def dora(accounts):
+    return accounts[3]

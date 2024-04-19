@@ -12,6 +12,7 @@ from vyper.interfaces import ERC20
 owner: public(address)
 future_owner: public(address)
 distributor: public(address)
+ratio_manager: public(address)
 
 reward_token: public(address)
 period_finish: public(uint256)
@@ -22,13 +23,16 @@ reward_per_receiver_total: public(uint256)
 receiver_count: public(uint256)
 
 reward_receivers: public(HashMap[address, bool])
+reward_ratio: public(HashMap[address, uint256])
 reward_paid: HashMap[address, uint256]
 
+receivers: public(DynArray[address, 8])
 
 @external
-def __init__(_owner: address, _distributor: address, _token: address, _duration: uint256):
+def __init__(_owner: address, _distributor: address, _ratio_manager: address, _token: address, _duration: uint256):
     self.owner = _owner
     self.distributor = _distributor
+    self.ratio_manager = _ratio_manager
     self.reward_token = _token
     self.reward_duration = _duration
 
@@ -48,6 +52,11 @@ def _update_per_receiver_total() -> uint256:
 
     return total
 
+@internal
+def _reset_reward_ratio():
+    for i in self.receivers:
+        self.reward_ratio[i] = 100 / self.receiver_count
+
 
 @external
 def add_receiver(_receiver: address):
@@ -65,6 +74,8 @@ def add_receiver(_receiver: address):
     self.reward_receivers[_receiver] = True
     self.receiver_count += 1
     self.reward_paid[_receiver] = total
+    self.receivers.append(_receiver)
+    self._reset_reward_ratio()
 
 
 @external
@@ -84,6 +95,23 @@ def remove_receiver(_receiver: address):
     if amount > 0:
         assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
     self.reward_paid[_receiver] = 0
+    
+    
+    index: uint256 = 0
+    # loop through the array to find the index of the receiver to delete
+    for receiver_address in self.receivers:
+        if _receiver == receiver_address:
+            break
+        index += 1
+
+    assert self.receivers[index] == _receiver, "dev: invalid removal"
+
+    # Move the last element to the position of the element to be removed
+    # then remove the last element
+    self.receivers[index] = self.receivers[len(self.receivers) - 1]
+    self.receivers.pop()
+    
+    self._reset_reward_ratio()
 
 
 @external

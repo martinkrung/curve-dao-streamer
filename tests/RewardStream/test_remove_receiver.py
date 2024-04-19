@@ -12,11 +12,42 @@ def module_setup(alice, bob, charlie, stream, reward_token):
 
 def test_receiver_deactivates(alice, charlie, stream):
     pre_remove = stream.reward_receivers(charlie)
+    
+    assert stream.reward_ratio(charlie) == 100
+    
     stream.remove_receiver(charlie, sender = alice)
-
+    
     assert pre_remove is True
     assert stream.reward_receivers(charlie) is False
 
+
+def test_receiver_ratio_decreases(alice, charlie, dora, stream):
+    stream.add_receiver(dora, sender = alice)
+
+    assert stream.reward_ratio(charlie) == 50
+    assert stream.reward_ratio(dora) == 50
+
+    pre_remove = stream.reward_receivers(charlie)
+    stream.remove_receiver(charlie, sender = alice)
+    
+    assert pre_remove is True
+    assert stream.reward_receivers(charlie) is False
+
+    assert stream.reward_ratio(dora) == 100
+
+def test_receiver_ratio_decreases_reverse(alice, charlie, dora, stream):
+    stream.add_receiver(dora, sender = alice)
+
+    assert stream.reward_ratio(charlie) == 50
+    assert stream.reward_ratio(dora) == 50
+
+    pre_remove = stream.reward_receivers(dora)
+    stream.remove_receiver(dora, sender = alice)
+
+    assert pre_remove is True
+    assert stream.reward_receivers(dora) is False
+
+    assert stream.reward_ratio(charlie) == 100
 
 def test_receiver_count_decreases(alice, charlie, stream):
     pre_remove = stream.receiver_count()
@@ -26,7 +57,7 @@ def test_receiver_count_decreases(alice, charlie, stream):
     assert post_remove == pre_remove - 1
 
 
-def test_updates_last_update_time(alice, charlie, stream):
+def test_updatest_last_update_time(alice, charlie, stream):
     pre_remove = stream.last_update_time()
     tx = stream.remove_receiver(charlie, sender = alice)
     post_remove = stream.last_update_time()
@@ -36,7 +67,7 @@ def test_updates_last_update_time(alice, charlie, stream):
     assert abs(post_remove - tx.timestamp) <= 1
 
 
-def test_updates_reward_per_receiver_total(alice, charlie, stream):
+def test_updatest_reward_per_receiver_total(alice, charlie, stream):
     pre_remove = stream.reward_per_receiver_total()
     stream.remove_receiver(charlie, sender = alice)
     post_remove = stream.reward_per_receiver_total()
