@@ -25,7 +25,7 @@ receiver_count: public(uint256)
 
 reward_receivers: public(HashMap[address, bool])
 reward_ratio: public(HashMap[address, uint256])
-reward_per_receiver_ratio_total: public(HashMap[address, uint256])
+reward_per_receiver_total_ratio: public(HashMap[address, uint256])
 
 reward_paid: HashMap[address, uint256]
 
@@ -56,7 +56,7 @@ def _update_per_receiver_total() -> uint256:
     return total
 
 @internal
-def update_per_receiver_ratio_total() -> uint256:
+def _update_per_receiver_total_ratio(_receiver: address) -> uint256:
     # Todo: 
     # update the total reward amount paid per receiver according to the ratio
     # Make sure ratio is change befor this function is called
@@ -65,35 +65,57 @@ def update_per_receiver_ratio_total() -> uint256:
     @dev Only callable by the ratio_manager. Reward tokens are distributed
          according to the ratio between receivers, over `reward_duration` seconds.
     """
-    assert msg.sender == self.ratio_manager, "dev: ratio manager"
-    total: uint256 = 0
-    ratio: uint256 = 0
+    total: uint256 = self.reward_per_receiver_total_ratio[_receiver]
     count: uint256 = self.receiver_count
     
     if count == 0:
         return total
+
     last_time: uint256 = min(block.timestamp, self.period_finish)
+    ratio: uint256 = 0
 
     for receiver_address in self.receivers:
-        total = self.reward_per_receiver_ratio_total[receiver_address]
+        total = self.reward_per_receiver_total_ratio[receiver_address]
         ratio = self.reward_ratio[receiver_address]
         # what is happening if ratio changes, is total wrong?
         total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
-        self.reward_per_receiver_ratio_total[receiver_address] = total
+        self.reward_per_receiver_total_ratio[receiver_address] = total
 
     self.last_update_time = last_time
 
-    return total
+    return self.reward_per_receiver_total_ratio[_receiver]
 
 
 @internal
-def _reset_reward_ratio():
+def _set_even_reward_ratio():
     if self.receiver_count == 0:
         return
     for i in self.receivers:
         self.reward_ratio[i] = 100 / self.receiver_count
     if (100 % self.receiver_count) > 0:
         self.reward_ratio[self.receivers[self.receiver_count-1]] = self.reward_ratio[self.receivers[self.receiver_count-1]] + (100 % self.receiver_count)
+
+
+@external
+def add_receiver_ratio(_receiver: address):
+    """
+    @notice Add a new reward receiver
+    @dev Rewards are distributed evenly between the receivers. Adding a new
+         receiver does not affect the available amount of unclaimed rewards
+         for other receivers.
+    @param _receiver Address of the new reward receiver
+    """
+    assert msg.sender == self.owner,  "dev: only owner"
+    assert not self.reward_receivers[_receiver],  "dev: receiver is active"
+
+    self.receivers.append(_receiver)
+    self._set_even_reward_ratio()
+
+    total: uint256 = self._update_per_receiver_total_ratio(_receiver)
+
+    self.reward_receivers[_receiver] = True
+    self.receiver_count += 1
+    self.reward_paid[_receiver] = total
 
 @external
 def add_receiver(_receiver: address):
@@ -112,7 +134,7 @@ def add_receiver(_receiver: address):
     self.receiver_count += 1
     self.reward_paid[_receiver] = total
     self.receivers.append(_receiver)
-    self._reset_reward_ratio()
+    self._set_even_reward_ratio()
 
 
 @external
@@ -148,7 +170,7 @@ def remove_receiver(_receiver: address):
     self.receivers[index] = self.receivers[len(self.receivers) - 1]
     self.receivers.pop()
     
-    self._reset_reward_ratio()
+    self._set_even_reward_ratio()
 
 
 @external
