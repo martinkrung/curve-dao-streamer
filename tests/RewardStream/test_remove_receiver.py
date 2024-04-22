@@ -17,6 +17,8 @@ def test_receiver_deactivates(alice, charlie, stream):
     
     stream.remove_receiver(charlie, sender = alice)
     
+    receivers = stream.receivers()
+
     assert pre_remove is True
     assert stream.reward_receivers(charlie) is False
 

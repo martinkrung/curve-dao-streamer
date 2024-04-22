@@ -20,6 +20,8 @@ def test_receiver_ratio_activation(alice, bob, charlie, dora, stream):
     pre_activation = stream.reward_ratio(bob)
     stream.add_receiver(bob,  sender=alice)
 
+    stream.reward_paid(bob) == 0
+
     assert pre_activation == 0
     assert stream.reward_ratio(bob) == 100
 

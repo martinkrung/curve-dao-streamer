@@ -27,7 +27,7 @@ reward_receivers: public(HashMap[address, bool])
 reward_ratio: public(HashMap[address, uint256])
 reward_per_receiver_total_ratio: public(HashMap[address, uint256])
 
-reward_paid: HashMap[address, uint256]
+reward_paid: public(HashMap[address, uint256])
 
 receivers: public(DynArray[address, 8])
 
@@ -44,6 +44,7 @@ def __init__(_owner: address, _distributor: address, _ratio_manager: address, _t
 def _update_per_receiver_total() -> uint256:
     # update the total reward amount paid per receiver
     total: uint256 = self.reward_per_receiver_total
+    # future count of receivers
     count: uint256 = self.receiver_count
     if count == 0:
         return total
@@ -70,16 +71,13 @@ def _update_per_receiver_total_ratio(_receiver: address) -> uint256:
     
     if count == 0:
         return total
+    
+
+    ratio: uint256  = self.reward_ratio[_receiver]
 
     last_time: uint256 = min(block.timestamp, self.period_finish)
-    ratio: uint256 = 0
-
-    for receiver_address in self.receivers:
-        total = self.reward_per_receiver_total_ratio[receiver_address]
-        ratio = self.reward_ratio[receiver_address]
-        # what is happening if ratio changes, is total wrong?
-        total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
-        self.reward_per_receiver_total_ratio[receiver_address] = total
+    total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
+    self.reward_per_receiver_total_ratio[_receiver] = total
 
     self.last_update_time = last_time
 
@@ -88,16 +86,23 @@ def _update_per_receiver_total_ratio(_receiver: address) -> uint256:
 
 @internal
 def _set_even_reward_ratio():
-    if self.receiver_count == 0:
-        return
     for i in self.receivers:
         self.reward_ratio[i] = 100 / self.receiver_count
+
     if (100 % self.receiver_count) > 0:
         self.reward_ratio[self.receivers[self.receiver_count-1]] = self.reward_ratio[self.receivers[self.receiver_count-1]] + (100 % self.receiver_count)
 
 
 @external
-def add_receiver_ratio(_receiver: address):
+def ratio_test():
+    ratio_total: uint256 = 0
+    for i in self.receivers:
+        ratio_total += self.reward_ratio[i]
+
+    assert ratio_total == 100,  "dev: ratio total is not 100"
+
+@external
+def add_receiver(_receiver: address):
     """
     @notice Add a new reward receiver
     @dev Rewards are distributed evenly between the receivers. Adding a new
@@ -109,16 +114,16 @@ def add_receiver_ratio(_receiver: address):
     assert not self.reward_receivers[_receiver],  "dev: receiver is active"
 
     self.receivers.append(_receiver)
+    self.receiver_count += 1
     self._set_even_reward_ratio()
 
     total: uint256 = self._update_per_receiver_total_ratio(_receiver)
 
     self.reward_receivers[_receiver] = True
-    self.receiver_count += 1
     self.reward_paid[_receiver] = total
 
 @external
-def add_receiver(_receiver: address):
+def add_receiver_old(_receiver: address):
     """
     @notice Add a new reward receiver
     @dev Rewards are distributed evenly between the receivers. Adding a new
@@ -138,7 +143,62 @@ def add_receiver(_receiver: address):
 
 
 @external
+def add_multiple_receivers(_receiver: address, ratio: uint256):
+    """
+    @notice Add a new reward receiver
+    @dev Rewards are distributed evenly between the receivers. Adding a new
+         receiver does not affect the available amount of unclaimed rewards
+         for other receivers.
+    @param _receiver Address of the new reward receiver
+    """
+    assert msg.sender == self.owner,  "dev: only owner"
+    assert not self.reward_receivers[_receiver],  "dev: receiver is active"
+
+    self.receivers.append(_receiver)
+    self.reward_ratio[_receiver] = ratio
+    self.reward_receivers[_receiver] = True
+    self.receiver_count += 1
+
+
+@external
 def remove_receiver(_receiver: address):
+    """
+    @notice Remove an existing reward receiver
+    @dev Removing a receiver distributes any unclaimed rewards to that receiver.
+    @param _receiver Address of the reward receiver being removed
+    """
+    assert msg.sender == self.owner, "dev: only owner"
+    assert self.reward_receivers[_receiver], "dev: receiver is inactive"
+    # with current self.receiver_count 
+    total: uint256 = self._update_per_receiver_total_ratio(_receiver)
+
+    self.reward_receivers[_receiver] = False
+    self.receiver_count -= 1
+    amount: uint256 = total - self.reward_paid[_receiver]
+    if amount > 0:
+        assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
+    self.reward_paid[_receiver] = 0
+    
+    
+    index: uint256 = 0
+    # loop through the array to find the index of the receiver to delete
+    for receiver_address in self.receivers:
+        if _receiver == receiver_address:
+            break
+        index += 1
+
+    assert self.receivers[index] == _receiver, "dev: invalid removal"
+
+    # Move the last element to the position of the element to be removed
+    # then remove the last element
+    self.receivers[index] = self.receivers[len(self.receivers) - 1]
+    self.receivers.pop()
+    
+    self._set_even_reward_ratio()
+
+
+@external
+def remove_receiver_old(_receiver: address):
     """
     @notice Remove an existing reward receiver
     @dev Removing a receiver distributes any unclaimed rewards to that receiver.
@@ -179,7 +239,9 @@ def get_reward(_receiver: address = msg.sender):
     @notice Claim pending rewards
     """
     assert self.reward_receivers[_receiver],  "dev: caller is not receiver"
-    total: uint256 = self._update_per_receiver_total()
+    total: uint256 = self._update_per_receiver_total_ratio(_receiver)
+
+    #  total: uint256 = self._update_per_receiver_total()
     amount: uint256 = total - self.reward_paid[_receiver]
     if amount > 0:
         assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
