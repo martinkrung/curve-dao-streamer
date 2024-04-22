@@ -72,12 +72,14 @@ def _update_per_receiver_total_ratio(_receiver: address) -> uint256:
     if count == 0:
         return total
     
+    ratio: uint256  = 0
 
-    ratio: uint256  = self.reward_ratio[_receiver]
-
-    last_time: uint256 = min(block.timestamp, self.period_finish)
-    total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
-    self.reward_per_receiver_total_ratio[_receiver] = total
+    for receiver_address in self.receivers:
+        total = self.reward_per_receiver_total_ratio[receiver_address]
+        ratio = self.reward_ratio[receiver_address]
+        # what is happening if ratio changes, is total wrong?
+        total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
+        self.reward_per_receiver_total_ratio[receiver_address] = total
 
     self.last_update_time = last_time
 
