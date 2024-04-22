@@ -72,12 +72,15 @@ def _update_per_receiver_total_ratio(_receiver: address) -> uint256:
     if count == 0:
         return total
     
-
-    ratio: uint256  = self.reward_ratio[_receiver]
-
+    ratio: uint256  = 0
     last_time: uint256 = min(block.timestamp, self.period_finish)
-    total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
-    self.reward_per_receiver_total_ratio[_receiver] = total
+
+    for receiver_address in self.receivers:
+        total = self.reward_per_receiver_total_ratio[receiver_address]
+        ratio = self.reward_ratio[receiver_address]
+        # what is happening if ratio changes, is total wrong?
+        total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
+        self.reward_per_receiver_total_ratio[receiver_address] = total
 
     self.last_update_time = last_time
 
@@ -92,9 +95,17 @@ def _set_even_reward_ratio():
     if (100 % self.receiver_count) > 0:
         self.reward_ratio[self.receivers[self.receiver_count-1]] = self.reward_ratio[self.receivers[self.receiver_count-1]] + (100 % self.receiver_count)
 
-
+@view
 @external
 def ratio_test():
+    ratio_total: uint256 = 0
+    for i in self.receivers:
+        ratio_total += self.reward_ratio[i]
+
+    assert ratio_total == 100,  "dev: ratio total is not 100"
+
+@internal
+def _ratio_test():
     ratio_total: uint256 = 0
     for i in self.receivers:
         ratio_total += self.reward_ratio[i]
@@ -141,6 +152,24 @@ def add_receiver_old(_receiver: address):
     self.receivers.append(_receiver)
     self._set_even_reward_ratio()
 
+
+@external
+def change_receiver_ratio(_receiver0: address, _ratio0: uint256, _receiver1: address, _ratio1: uint256):
+        """
+        @notice change receiver status
+        @dev if existing receiver is active, deactivate it and pay out the remaining rewards
+             if existing receiver is inactive, activate it
+        """
+        # todo, if deactivate, ratio cant be changed!
+        assert msg.sender == self.owner, "dev: only owner"
+
+        assert self.reward_receivers[_receiver0], "dev: receiver is inactive"
+        assert self.reward_receivers[_receiver1], "dev: receiver is inactive"
+
+        self.reward_ratio[_receiver0] = _ratio0
+        self.reward_ratio[_receiver1] = _ratio1
+        
+        self._ratio_test()
 
 @external
 def add_multiple_receivers(_receiver: address, ratio: uint256):
