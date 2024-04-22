@@ -161,14 +161,18 @@ def change_receiver_ratio(_receiver0: address, _ratio0: uint256, _receiver1: add
              if existing receiver is inactive, activate it
         """
         # todo, if deactivate, ratio cant be changed!
-        assert msg.sender == self.owner, "dev: only owner"
+        assert msg.sender == self.ratio_manager, "dev: only ratio manager"
 
         assert self.reward_receivers[_receiver0], "dev: receiver is inactive"
         assert self.reward_receivers[_receiver1], "dev: receiver is inactive"
+        assert _ratio0 < 100 , "dev: ratio must be < 100"
+        assert _ratio0 > 0 , "dev: ratio must be > 0"
+        assert _ratio1 < 100 , "dev: ratio must be < 100"
+        assert _ratio1 > 0 , "dev: ratio must be > 0"
 
         self.reward_ratio[_receiver0] = _ratio0
         self.reward_ratio[_receiver1] = _ratio1
-        
+                    
         self._ratio_test()
 
 @external

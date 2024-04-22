@@ -32,7 +32,7 @@ def test_revert_add_multiple_receivers_add_same(alice, charlie, bob,  stream):
         stream.add_multiple_receivers(charlie, 25, sender=alice)
 
 
-def test_change_receiver_ratio(alice, charlie, bob,  stream):
+def test_change_receiver_ratio(alice, charlie, bob, stream):
     
     stream.add_multiple_receivers(charlie, 50, sender=alice)
     stream.add_multiple_receivers(bob, 50, sender=alice)
@@ -44,7 +44,7 @@ def test_change_receiver_ratio(alice, charlie, bob,  stream):
     stream.ratio_test(sender=alice)
    
 
-def test_change_receiver_ratio_revert(alice, charlie, bob,  stream):
+def test_revert_change_receiver_ratio(alice, charlie, bob,  stream):
     
     stream.add_multiple_receivers(charlie, 50, sender=alice)
     stream.add_multiple_receivers(bob, 50, sender=alice)
@@ -53,3 +53,20 @@ def test_change_receiver_ratio_revert(alice, charlie, bob,  stream):
 
     with ape.reverts("dev: ratio total is not 100"):
         stream.change_receiver_ratio(charlie, 30, bob, 71, sender=alice)
+
+def test_revert_change_receiver_ratio_invalid_range(alice, charlie, bob, stream):
+    
+    stream.add_multiple_receivers(charlie, 50, sender=alice)
+    stream.add_multiple_receivers(bob, 50, sender=alice)
+    
+    with ape.reverts("dev: ratio must be < 100"):
+        stream.change_receiver_ratio(charlie, 130, bob, 13, sender=alice)
+
+    with ape.reverts("dev: ratio must be > 0"):
+        stream.change_receiver_ratio(charlie, 0, bob, 13, sender=alice)
+
+    with ape.reverts("dev: ratio must be < 100"):
+        stream.change_receiver_ratio(charlie, 13, bob, 130, sender=alice)
+
+    with ape.reverts("dev: ratio must be > 0"):
+        stream.change_receiver_ratio(charlie, 20, bob, 0, sender=alice)
