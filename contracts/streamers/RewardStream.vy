@@ -41,7 +41,7 @@ def __init__(_owner: address, _distributor: address, _ratio_manager: address, _t
 
 
 @internal
-def _update_per_receiver_total() -> uint256:
+def _update_per_receiver_total_old() -> uint256:
     # update the total reward amount paid per receiver
     total: uint256 = self.reward_per_receiver_total
     # future count of receivers
@@ -57,7 +57,7 @@ def _update_per_receiver_total() -> uint256:
     return total
 
 @internal
-def _update_per_receiver_total_ratio(_receiver: address) -> uint256:
+def _update_per_receiver_total(_receiver: address) -> uint256:
     # Todo: 
     # update the total reward amount paid per receiver according to the ratio
     # Make sure ratio is change befor this function is called
@@ -128,7 +128,7 @@ def add_receiver(_receiver: address):
     self.receiver_count += 1
     self._set_even_reward_ratio()
 
-    total: uint256 = self._update_per_receiver_total_ratio(_receiver)
+    total: uint256 = self._update_per_receiver_total(_receiver)
 
     self.reward_receivers[_receiver] = True
     self.reward_paid[_receiver] = total
@@ -144,7 +144,7 @@ def add_receiver_old(_receiver: address):
     """
     assert msg.sender == self.owner,  "dev: only owner"
     assert not self.reward_receivers[_receiver],  "dev: receiver is active"
-    total: uint256 = self._update_per_receiver_total()
+    total: uint256 = self._update_per_receiver_total(_receiver)
 
     self.reward_receivers[_receiver] = True
     self.receiver_count += 1
@@ -187,10 +187,16 @@ def add_multiple_receivers(_receiver: address, ratio: uint256):
     assert msg.sender == self.owner,  "dev: only owner"
     assert not self.reward_receivers[_receiver],  "dev: receiver is active"
 
+
     self.receivers.append(_receiver)
     self.reward_ratio[_receiver] = ratio
+
+    total: uint256 = self._update_per_receiver_total(_receiver)
+
     self.reward_receivers[_receiver] = True
     self.receiver_count += 1
+    
+    self.reward_paid[_receiver] = total
 
 
 @external
@@ -203,7 +209,7 @@ def remove_receiver(_receiver: address):
     assert msg.sender == self.owner, "dev: only owner"
     assert self.reward_receivers[_receiver], "dev: receiver is inactive"
     # with current self.receiver_count 
-    total: uint256 = self._update_per_receiver_total_ratio(_receiver)
+    total: uint256 = self._update_per_receiver_total(_receiver)
 
     self.reward_receivers[_receiver] = False
     self.receiver_count -= 1
@@ -239,7 +245,7 @@ def remove_receiver_old(_receiver: address):
     """
     assert msg.sender == self.owner, "dev: only owner"
     assert self.reward_receivers[_receiver], "dev: receiver is inactive"
-    total: uint256 = self._update_per_receiver_total()
+    total: uint256 = self._update_per_receiver_total(_receiver)
 
     self.reward_receivers[_receiver] = False
     self.receiver_count -= 1
@@ -272,7 +278,7 @@ def get_reward(_receiver: address = msg.sender):
     @notice Claim pending rewards
     """
     assert self.reward_receivers[_receiver],  "dev: caller is not receiver"
-    total: uint256 = self._update_per_receiver_total_ratio(_receiver)
+    total: uint256 = self._update_per_receiver_total(_receiver)
 
     #  total: uint256 = self._update_per_receiver_total()
     amount: uint256 = total - self.reward_paid[_receiver]
@@ -290,7 +296,9 @@ def notify_reward_amount(_amount: uint256):
     @param _amount Amount of reward tokens to add
     """
     assert msg.sender == self.distributor, "dev: only distributor"
-    self._update_per_receiver_total()
+    # total fake, only for testing
+    self._update_per_receiver_total(msg.sender)
+
     assert ERC20(self.reward_token).transferFrom(msg.sender, self, _amount), "dev: invalid response"
     duration: uint256 = self.reward_duration
     if block.timestamp >= self.period_finish:
