@@ -19,17 +19,27 @@ period_finish: public(uint256)
 reward_rate: public(uint256)
 reward_duration: public(uint256)
 last_update_time: public(uint256)
-reward_per_receiver_total: public(uint256)
 
 receiver_count: public(uint256)
 
-reward_receivers: public(HashMap[address, bool])
-reward_ratio: public(HashMap[address, uint256])
-reward_per_receiver_total_ratio: public(HashMap[address, uint256])
+# used in old version
+reward_per_receiver_total: public(uint256)
 
-reward_paid: public(HashMap[address, uint256])
+# reward_receivers: public(HashMap[address, bool])
+#reward_ratio: public(HashMap[address, uint256])
+
+#reward_paid: public(HashMap[address, uint256])
 
 receivers: public(DynArray[address, 8])
+
+struct receiverData:
+    active: bool
+    ratio: uint256
+    total: uint256
+    paid: uint256
+
+reward_receivers: public(HashMap[address, receiverData])
+
 
 @external
 def __init__(_owner: address, _distributor: address, _ratio_manager: address, _token: address, _duration: uint256):
@@ -66,7 +76,7 @@ def _update_per_receiver_total(_receiver: address) -> uint256:
     @dev Only callable by the ratio_manager. Reward tokens are distributed
          according to the ratio between receivers, over `reward_duration` seconds.
     """
-    total: uint256 = self.reward_per_receiver_total_ratio[_receiver]
+    total: uint256 = self.reward_receivers[_receiver].total
     count: uint256 = self.receiver_count
     
     if count == 0:
@@ -76,31 +86,32 @@ def _update_per_receiver_total(_receiver: address) -> uint256:
     last_time: uint256 = min(block.timestamp, self.period_finish)
 
     for receiver_address in self.receivers:
-        total = self.reward_per_receiver_total_ratio[receiver_address]
-        ratio = self.reward_ratio[receiver_address]
+        total = self.reward_receivers[receiver_address].total
+        ratio = self.reward_receivers[receiver_address].ratio
         # what is happening if ratio changes, is total wrong?
         total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
-        self.reward_per_receiver_total_ratio[receiver_address] = total
+        self.reward_receivers[receiver_address].total = total
 
     self.last_update_time = last_time
 
-    return self.reward_per_receiver_total_ratio[_receiver]
+    return self.reward_receivers[_receiver].total
 
 
 @internal
 def _set_even_reward_ratio():
     for i in self.receivers:
-        self.reward_ratio[i] = 100 / self.receiver_count
+        self.reward_receivers[i].ratio = 100 / self.receiver_count
 
     if (100 % self.receiver_count) > 0:
-        self.reward_ratio[self.receivers[self.receiver_count-1]] = self.reward_ratio[self.receivers[self.receiver_count-1]] + (100 % self.receiver_count)
+        self.reward_receivers[self.receivers[self.receiver_count-1]].ratio = self.reward_receivers[self.receivers[self.receiver_count-1]].ratio + (100 % self.receiver_count)
+
 
 @view
 @external
 def ratio_test():
     ratio_total: uint256 = 0
     for i in self.receivers:
-        ratio_total += self.reward_ratio[i]
+        ratio_total += self.reward_receivers[i].ratio
 
     assert ratio_total == 100,  "dev: ratio total is not 100"
 
@@ -108,9 +119,31 @@ def ratio_test():
 def _ratio_test():
     ratio_total: uint256 = 0
     for i in self.receivers:
-        ratio_total += self.reward_ratio[i]
+        ratio_total += self.reward_receivers[i].ratio
 
     assert ratio_total == 100,  "dev: ratio total is not 100"
+
+
+@view
+@external
+def get_receiver_data_single(_receiver: address) -> (bool, uint256, uint256, uint256):    
+    return self.reward_receivers[_receiver].active, self.reward_receivers[_receiver].ratio, self.reward_receivers[_receiver].total, self.reward_receivers[_receiver].paid
+
+
+@view
+@external
+def get_receiver_data(_receiver: address) -> (bool, uint256, uint256, uint256):
+    active: bool = False
+    ratio: uint256 = 0
+    total: uint256 = 0
+    paid: uint256 = 0
+    for receiver_address in self.receivers:
+        active = self.reward_receivers[receiver_address].active
+        ratio = self.reward_receivers[receiver_address].ratio
+        total = self.reward_receivers[receiver_address].total
+        paid = self.reward_receivers[receiver_address].paid
+    
+    return active, ratio, total, paid
 
 @external
 def add_receiver(_receiver: address):
@@ -122,7 +155,7 @@ def add_receiver(_receiver: address):
     @param _receiver Address of the new reward receiver
     """
     assert msg.sender == self.owner,  "dev: only owner"
-    assert not self.reward_receivers[_receiver],  "dev: receiver is active"
+    assert not self.reward_receivers[_receiver].active,  "dev: receiver is active"
 
     self.receivers.append(_receiver)
     self.receiver_count += 1
@@ -130,8 +163,8 @@ def add_receiver(_receiver: address):
 
     total: uint256 = self._update_per_receiver_total(_receiver)
 
-    self.reward_receivers[_receiver] = True
-    self.reward_paid[_receiver] = total
+    self.reward_receivers[_receiver].active = True
+    self.reward_receivers[_receiver].paid = total
 
 @external
 def add_receiver_old(_receiver: address):
@@ -143,12 +176,12 @@ def add_receiver_old(_receiver: address):
     @param _receiver Address of the new reward receiver
     """
     assert msg.sender == self.owner,  "dev: only owner"
-    assert not self.reward_receivers[_receiver],  "dev: receiver is active"
+    assert not self.reward_receivers[_receiver].active,  "dev: receiver is active"
     total: uint256 = self._update_per_receiver_total(_receiver)
 
-    self.reward_receivers[_receiver] = True
+    self.reward_receivers[_receiver].active = True
     self.receiver_count += 1
-    self.reward_paid[_receiver] = total
+    self.reward_receivers[_receiver].paid = total
     self.receivers.append(_receiver)
     self._set_even_reward_ratio()
 
@@ -163,15 +196,15 @@ def change_receiver_ratio(_receiver0: address, _ratio0: uint256, _receiver1: add
         # todo, if deactivate, ratio cant be changed!
         assert msg.sender == self.ratio_manager, "dev: only ratio manager"
 
-        assert self.reward_receivers[_receiver0], "dev: receiver is inactive"
-        assert self.reward_receivers[_receiver1], "dev: receiver is inactive"
+        assert self.reward_receivers[_receiver0].active, "dev: receiver is inactive"
+        assert self.reward_receivers[_receiver1].active, "dev: receiver is inactive"
         assert _ratio0 < 100 , "dev: ratio must be < 100"
         assert _ratio0 > 0 , "dev: ratio must be > 0"
         assert _ratio1 < 100 , "dev: ratio must be < 100"
         assert _ratio1 > 0 , "dev: ratio must be > 0"
 
-        self.reward_ratio[_receiver0] = _ratio0
-        self.reward_ratio[_receiver1] = _ratio1
+        self.reward_receivers[_receiver0].ratio = _ratio0
+        self.reward_receivers[_receiver1].ratio = _ratio1
                     
         self._ratio_test()
 
@@ -185,18 +218,18 @@ def add_multiple_receivers(_receiver: address, ratio: uint256):
     @param _receiver Address of the new reward receiver
     """
     assert msg.sender == self.owner,  "dev: only owner"
-    assert not self.reward_receivers[_receiver],  "dev: receiver is active"
+    assert not self.reward_receivers[_receiver].active,  "dev: receiver is active"
 
 
     self.receivers.append(_receiver)
-    self.reward_ratio[_receiver] = ratio
+    self.reward_receivers[_receiver].ratio = ratio
 
     total: uint256 = self._update_per_receiver_total(_receiver)
 
-    self.reward_receivers[_receiver] = True
+    self.reward_receivers[_receiver].active = True
     self.receiver_count += 1
     
-    self.reward_paid[_receiver] = total
+    self.reward_receivers[_receiver].paid = total
 
 
 @external
@@ -207,16 +240,16 @@ def remove_receiver(_receiver: address):
     @param _receiver Address of the reward receiver being removed
     """
     assert msg.sender == self.owner, "dev: only owner"
-    assert self.reward_receivers[_receiver], "dev: receiver is inactive"
+    assert self.reward_receivers[_receiver].active, "dev: receiver is inactive"
     # with current self.receiver_count 
     total: uint256 = self._update_per_receiver_total(_receiver)
 
-    self.reward_receivers[_receiver] = False
+    self.reward_receivers[_receiver].active = False
     self.receiver_count -= 1
-    amount: uint256 = total - self.reward_paid[_receiver]
+    amount: uint256 = total - self.reward_receivers[_receiver].paid
     if amount > 0:
         assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
-    self.reward_paid[_receiver] = 0
+    self.reward_receivers[_receiver].paid = 0
     
     
     index: uint256 = 0
@@ -244,16 +277,15 @@ def remove_receiver_old(_receiver: address):
     @param _receiver Address of the reward receiver being removed
     """
     assert msg.sender == self.owner, "dev: only owner"
-    assert self.reward_receivers[_receiver], "dev: receiver is inactive"
+    assert self.reward_receivers[_receiver].active, "dev: receiver is inactive"
     total: uint256 = self._update_per_receiver_total(_receiver)
 
-    self.reward_receivers[_receiver] = False
+    self.reward_receivers[_receiver].active = False
     self.receiver_count -= 1
-    amount: uint256 = total - self.reward_paid[_receiver]
+    amount: uint256 = total - self.reward_receivers[_receiver].paid
     if amount > 0:
         assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
-    self.reward_paid[_receiver] = 0
-    
+    self.reward_receivers[_receiver].paid = 0
     
     index: uint256 = 0
     # loop through the array to find the index of the receiver to delete
@@ -277,14 +309,14 @@ def get_reward(_receiver: address = msg.sender):
     """
     @notice Claim pending rewards
     """
-    assert self.reward_receivers[_receiver],  "dev: caller is not receiver"
+    assert self.reward_receivers[_receiver].active,  "dev: caller is not receiver"
     total: uint256 = self._update_per_receiver_total(_receiver)
 
     #  total: uint256 = self._update_per_receiver_total()
-    amount: uint256 = total - self.reward_paid[_receiver]
+    amount: uint256 = total - self.reward_receivers[_receiver].paid
     if amount > 0:
         assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
-        self.reward_paid[_receiver] = total
+        self.reward_receivers[_receiver].paid = total
 
 
 @external
