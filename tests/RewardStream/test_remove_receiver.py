@@ -1,6 +1,7 @@
 import ape
 from ape import chain
 import pytest
+import sys
 
 
 @pytest.fixture(autouse=True)
@@ -11,45 +12,51 @@ def module_setup(alice, bob, charlie, stream, reward_token):
 
 
 def test_receiver_deactivates(alice, charlie, stream):
-    pre_remove = stream.reward_receivers(charlie)
+    pre_remove = stream.reward_receivers(charlie)['active']
     
-    assert stream.reward_ratio(charlie) == 100
-    
+    assert stream.reward_receivers(charlie)['ratio'] == 100
+
+    data = stream.get_receiver_data(charlie)
+    print(data)
+
     stream.remove_receiver(charlie, sender = alice)
     
-    receivers = stream.receivers()
-
+    # receivers = stream.receivers()
     assert pre_remove is True
-    assert stream.reward_receivers(charlie) is False
+    assert stream.reward_receivers(charlie)['active'] is False
+
+    data = stream.get_receiver_data(charlie)
+    print(data)
+    sys.exit
 
 
 def test_receiver_ratio_decreases(alice, charlie, dora, stream):
     stream.add_receiver(dora, sender = alice)
 
-    assert stream.reward_ratio(charlie) == 50
-    assert stream.reward_ratio(dora) == 50
+    assert stream.reward_receivers(charlie)['ratio'] == 50
+    assert stream.reward_receivers(dora)['ratio'] == 50
 
-    pre_remove = stream.reward_receivers(charlie)
+    pre_remove = stream.reward_receivers(charlie)['active']
     stream.remove_receiver(charlie, sender = alice)
     
     assert pre_remove is True
-    assert stream.reward_receivers(charlie) is False
+    assert stream.reward_receivers(charlie)['active'] is False
 
-    assert stream.reward_ratio(dora) == 100
+    assert stream.reward_receivers(dora)['ratio'] == 100
 
 def test_receiver_ratio_decreases_reverse(alice, charlie, dora, stream):
     stream.add_receiver(dora, sender = alice)
 
-    assert stream.reward_ratio(charlie) == 50
-    assert stream.reward_ratio(dora) == 50
+    assert stream.reward_receivers(charlie)['ratio'] == 50
+    assert stream.reward_receivers(dora)['ratio'] == 50
 
-    pre_remove = stream.reward_receivers(dora)
+    pre_remove = stream.reward_receivers(dora)['active']
     stream.remove_receiver(dora, sender = alice)
 
     assert pre_remove is True
-    assert stream.reward_receivers(dora) is False
+    assert stream.reward_receivers(dora)['active'] is False
 
-    assert stream.reward_ratio(charlie) == 100
+    assert stream.reward_receivers(charlie)['ratio'] == 100
 
 def test_receiver_count_decreases(alice, charlie, stream):
     pre_remove = stream.receiver_count()
@@ -70,9 +77,9 @@ def test_updatest_last_update_time(alice, charlie, stream):
 
 
 def test_updatest_reward_per_receiver_total(alice, charlie, stream):
-    pre_remove = stream.reward_per_receiver_total()
+    pre_remove = stream.reward_receivers(charlie)['total']
     stream.remove_receiver(charlie, sender = alice)
-    post_remove = stream.reward_per_receiver_total()
+    post_remove = stream.reward_receivers(charlie)['total']
 
     assert pre_remove < post_remove
     assert 0.9999 < post_remove / 10 ** 18 <= 1
