@@ -25,10 +25,11 @@ receiver_count: public(uint256)
 receivers: public(DynArray[address, 8])
 
 struct receiverData:
-    active: bool
-    ratio: uint256
-    total: uint256
-    paid: uint256
+    active: bool     # active or not
+    ratio: uint256   # ratio of the reward, between 0 and 100
+    rate: uint256    # token rate per second of the reward
+    total: uint256   # total reward amount per receiver
+    paid: uint256    # total reward amount withdrawn per receiver
 
 reward_receivers: public(HashMap[address, receiverData])
 
@@ -58,6 +59,7 @@ def _update_per_receiver_total(_receiver: address) -> uint256:
         return total
     
     ratio: uint256  = 0
+    rate: uint256 = 0
     last_time: uint256 = min(block.timestamp, self.period_finish)
 
     self._ratio_test()
@@ -65,8 +67,9 @@ def _update_per_receiver_total(_receiver: address) -> uint256:
     for receiver_address in self.receivers:
         total = self.reward_receivers[receiver_address].total
         ratio = self.reward_receivers[receiver_address].ratio
-        # what is happening if ratio changes, is total wrong?
-        total += (last_time - self.last_update_time) * self.reward_rate * ratio / 100
+        rate = self.reward_rate * ratio / 100
+        self.reward_receivers[receiver_address].rate = rate
+        total += (last_time - self.last_update_time) * rate
         self.reward_receivers[receiver_address].total = total
 
     self.last_update_time = last_time
@@ -104,8 +107,8 @@ def _ratio_test():
 
 @view
 @external
-def get_receiver_data(_receiver: address) -> (bool, uint256, uint256, uint256):    
-    return self.reward_receivers[_receiver].active, self.reward_receivers[_receiver].ratio, self.reward_receivers[_receiver].total, self.reward_receivers[_receiver].paid
+def get_receiver_data(_receiver: address) -> (bool, uint256, uint256, uint256, uint256):
+    return self.reward_receivers[_receiver].active, self.reward_receivers[_receiver].ratio, self.reward_receivers[_receiver].rate, self.reward_receivers[_receiver].total, self.reward_receivers[_receiver].paid
 
 
 @view
