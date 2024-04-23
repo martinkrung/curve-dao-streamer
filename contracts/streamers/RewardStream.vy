@@ -22,14 +22,6 @@ last_update_time: public(uint256)
 
 receiver_count: public(uint256)
 
-# used in old version
-reward_per_receiver_total: public(uint256)
-
-# reward_receivers: public(HashMap[address, bool])
-#reward_ratio: public(HashMap[address, uint256])
-
-#reward_paid: public(HashMap[address, uint256])
-
 receivers: public(DynArray[address, 8])
 
 struct receiverData:
@@ -48,23 +40,6 @@ def __init__(_owner: address, _distributor: address, _ratio_manager: address, _t
     self.ratio_manager = _ratio_manager
     self.reward_token = _token
     self.reward_duration = _duration
-
-
-@internal
-def _update_per_receiver_total_old() -> uint256:
-    # update the total reward amount paid per receiver
-    total: uint256 = self.reward_per_receiver_total
-    # future count of receivers
-    count: uint256 = self.receiver_count
-    if count == 0:
-        return total
-
-    last_time: uint256 = min(block.timestamp, self.period_finish)
-    total += (last_time - self.last_update_time) * self.reward_rate / count
-    self.reward_per_receiver_total = total
-    self.last_update_time = last_time
-
-    return total
 
 @internal
 def _update_per_receiver_total(_receiver: address) -> uint256:
@@ -117,6 +92,7 @@ def ratio_test():
 
     assert ratio_total == 100,  "dev: ratio total is not 100"
 
+
 @internal
 def _ratio_test():
     ratio_total: uint256 = 0
@@ -147,6 +123,7 @@ def get_receiver_data_all(_receiver: address) -> (bool, uint256, uint256, uint25
     
     return active, ratio, total, paid
 
+
 @external
 def add_receiver(_receiver: address):
     """
@@ -167,69 +144,6 @@ def add_receiver(_receiver: address):
     self.reward_receivers[_receiver].paid = total
 
     self._set_even_reward_ratio()
-
-#@external
-#def add_receiver_old(_receiver: address):
-#    """
-#    @notice Add a new reward receiver
-#    @dev Rewards are distributed evenly between the receivers. Adding a new
-#         receiver does not affect the available amount of unclaimed rewards
-#         for other receivers.
-#    @param _receiver Address of the new reward receiver
-#    """
-#    assert msg.sender == self.owner  # dev: only owner
-#    assert not self.reward_receivers[_receiver]  # dev: receiver is active
-#    total: uint256 = self._update_per_receiver_total()#
-#
-#   self.reward_receivers[_receiver] = True
-#    self.receiver_count += 1
-#    self.reward_paid[_receiver] = total
-
-@external
-def change_receiver_ratio(_receiver0: address, _ratio0: uint256, _receiver1: address, _ratio1: uint256):
-        """
-        @notice change receiver status
-        @dev if existing receiver is active, deactivate it and pay out the remaining rewards
-             if existing receiver is inactive, activate it
-        """
-        # todo, if deactivate, ratio cant be changed!
-        assert msg.sender == self.ratio_manager, "dev: only ratio manager"
-
-        assert self.reward_receivers[_receiver0].active, "dev: receiver is inactive"
-        assert self.reward_receivers[_receiver1].active, "dev: receiver is inactive"
-        assert _ratio0 < 100 , "dev: ratio must be < 100"
-        assert _ratio0 > 0 , "dev: ratio must be > 0"
-        assert _ratio1 < 100 , "dev: ratio must be < 100"
-        assert _ratio1 > 0 , "dev: ratio must be > 0"
-
-        self.reward_receivers[_receiver0].ratio = _ratio0
-        self.reward_receivers[_receiver1].ratio = _ratio1
-                    
-        self._ratio_test()
-        self._update_per_receiver_total(_receiver0)
-
-@external
-def add_multiple_receivers(_receiver: address, ratio: uint256):
-    """
-    @notice Add a new reward receiver
-    @dev Rewards are distributed evenly between the receivers. Adding a new
-         receiver does not affect the available amount of unclaimed rewards
-         for other receivers.
-    @param _receiver Address of the new reward receiver
-    """
-    assert msg.sender == self.owner,  "dev: only owner"
-    assert not self.reward_receivers[_receiver].active,  "dev: receiver is active"
-
-
-    self.receivers.append(_receiver)
-    self.reward_receivers[_receiver].ratio = ratio
-
-    total: uint256 = self._update_per_receiver_total(_receiver)
-
-    self.reward_receivers[_receiver].active = True
-    self.receiver_count += 1
-    
-    self.reward_receivers[_receiver].paid = total
 
 
 @external
@@ -269,39 +183,29 @@ def remove_receiver(_receiver: address):
     if self.receiver_count != 0:
         self._set_even_reward_ratio()
 
+
 @external
-def remove_receiver_old(_receiver: address):
-    """
-    @notice Remove an existing reward receiver
-    @dev Removing a receiver distributes any unclaimed rewards to that receiver.
-    @param _receiver Address of the reward receiver being removed
-    """
-    assert msg.sender == self.owner, "dev: only owner"
-    assert self.reward_receivers[_receiver].active, "dev: receiver is inactive"
-    total: uint256 = self._update_per_receiver_total(_receiver)
+def change_receiver_ratio(_receiver0: address, _ratio0: uint256, _receiver1: address, _ratio1: uint256):
+        """
+        @notice change receiver status
+        @dev if existing receiver is active, deactivate it and pay out the remaining rewards
+             if existing receiver is inactive, activate it
+        """
+        # todo, if deactivate, ratio cant be changed!
+        assert msg.sender == self.ratio_manager, "dev: only ratio manager"
 
-    self.reward_receivers[_receiver].active = False
-    self.receiver_count -= 1
-    amount: uint256 = total - self.reward_receivers[_receiver].paid
-    if amount > 0:
-        assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
-    self.reward_receivers[_receiver].paid = 0
-    
-    index: uint256 = 0
-    # loop through the array to find the index of the receiver to delete
-    for receiver_address in self.receivers:
-        if _receiver == receiver_address:
-            break
-        index += 1
+        assert self.reward_receivers[_receiver0].active, "dev: receiver is inactive"
+        assert self.reward_receivers[_receiver1].active, "dev: receiver is inactive"
+        assert _ratio0 < 100 , "dev: ratio must be < 100"
+        assert _ratio0 > 0 , "dev: ratio must be > 0"
+        assert _ratio1 < 100 , "dev: ratio must be < 100"
+        assert _ratio1 > 0 , "dev: ratio must be > 0"
 
-    assert self.receivers[index] == _receiver, "dev: invalid removal"
-
-    # Move the last element to the position of the element to be removed
-    # then remove the last element
-    self.receivers[index] = self.receivers[len(self.receivers) - 1]
-    self.receivers.pop()
-    
-    self._set_even_reward_ratio()
+        self.reward_receivers[_receiver0].ratio = _ratio0
+        self.reward_receivers[_receiver1].ratio = _ratio1
+                    
+        self._ratio_test()
+        self._update_per_receiver_total(_receiver0)
 
 
 @external
