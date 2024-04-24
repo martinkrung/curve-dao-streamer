@@ -18,8 +18,8 @@ jobs:
           python-version: '3.10' 
       - uses: ApeWorX/github-action@v2
         with:
-          cache: 'pip'
+          cache: ['python-version', 'ape-version-pin', 'ape-plugins-list']
           python-version: '3.10' # (optional)
           ape-version-pin: '>=0.7.0' # (optional)
-          #ape-plugins-list: 'solidity vyper==0.7.0' # (optional)
+          ape-plugins-list: 'solidity vyper==0.7.0' # (optional)
       - run: ape test -s
