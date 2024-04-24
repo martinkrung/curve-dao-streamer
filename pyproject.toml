@@ -5,8 +5,8 @@ requires = ["setuptools>=51.1.1", "wheel", "setuptools_scm[toml]>=5.0"]
 exclude = "build/"
 plugins = ["pydantic.mypy"]
 
-#[tool.setuptools_scm]
-#write_to = "<MODULE_NAME>/version.py"
+[tool.setuptools_scm]
+write_to = "contract/version.py"
 
 # NOTE: you have to use single-quoted strings in TOML for regular expressions.
 # It's the equivalent of r-strings in Python.  Multiline strings are treated as
