@@ -2,11 +2,12 @@ name: ape-github-action
 run-name: ${{ github.actor }} is running tests
 on: ["push", "pull_request"]
 jobs:
-  steps:
-    - uses: actions/checkout@v4
-    - uses: ApeWorX/github-action@v2
-      with:
-        python-version: '3.10' # (optional)
-        ape-version-pin: '>=0.7.0' # (optional)
-        ape-plugins-list: 'solidity vyper==0.7.0' # (optional)
-    - run: ape test -s
+  functional-tests:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ApeWorX/github-action@v2
+        with:
+          python-version: '3.10' # (optional)
+          ape-version-pin: '>=0.7.0' # (optional)
+          ape-plugins-list: 'solidity vyper==0.7.0' # (optional)
+      - run: ape test -s
