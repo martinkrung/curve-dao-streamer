@@ -20,5 +20,5 @@ jobs:
         with:
           cache: 'python-version'
           # ape-version-pin: '>=0.7.0' # (optional)
-          # ape-plugins-list: 'solidity vyper==0.7.0' # (optional)
+          ape-plugins-list: 'vyper' # (optional)
       - run: ape test -s
