@@ -1,2 +1,4 @@
-name: ape-github-action              
+name: ape-github-action         
+run-name: ${{ github.actor }} is running tests
+on: ["push", "pull_request"]
 uses: ApeWorX/github-action@v2.7
