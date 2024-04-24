@@ -1,6 +1,6 @@
 name: Test
 run-name: ${{ github.actor }} is running tests
- on: ["push", "pull_request"]
+on: ["push", "pull_request"]
 concurrency:
   # Cancel older, in-progress jobs from the same PR, same workflow.
   # use run_id if the job is triggered by a push to ensure
