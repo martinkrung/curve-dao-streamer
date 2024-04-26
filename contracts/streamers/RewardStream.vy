@@ -44,13 +44,9 @@ def __init__(_owner: address, _distributor: address, _ratio_manager: address, _t
 
 @internal
 def _update_per_receiver_total(_receiver: address) -> uint256:
-    # Todo: 
-    # update the total reward amount paid per receiver according to the ratio
-    # Make sure ratio is change befor this function is called
-    # return value now makes no sense
     """
-    @dev Only callable by the ratio_manager. Reward tokens are distributed
-         according to the ratio between receivers, over `reward_duration` seconds.
+    @dev Update rewards for every receiver according to his set ratio
+    @param _receiver Address of the receiver
     """
     total: uint256 = self.reward_receivers[_receiver].total
     count: uint256 = self.receiver_count
@@ -79,6 +75,10 @@ def _update_per_receiver_total(_receiver: address) -> uint256:
 
 @internal
 def _set_even_reward_ratio():
+    """
+    @notice Set ratio to distribut reward more or less evenly,
+        if division is not ending with 0, then the last receiver gets the rest
+    """
     for i in self.receivers:
         self.reward_receivers[i].ratio = 100 / self.receiver_count
 
@@ -182,7 +182,6 @@ def remove_receiver(_receiver: address):
     # then remove the last element
     self.receivers[index] = self.receivers[len(self.receivers) - 1]
     self.receivers.pop()
-    
     if self.receiver_count != 0:
         self._set_even_reward_ratio()
 
@@ -219,7 +218,6 @@ def get_reward(_receiver: address = msg.sender):
     assert self.reward_receivers[_receiver].active,  "dev: caller is not receiver"
     total: uint256 = self._update_per_receiver_total(_receiver)
 
-    #  total: uint256 = self._update_per_receiver_total()
     amount: uint256 = total - self.reward_receivers[_receiver].paid
     if amount > 0:
         assert ERC20(self.reward_token).transfer(_receiver, amount), "dev: invalid response"
@@ -231,7 +229,7 @@ def notify_reward_amount(_amount: uint256):
     """
     @notice Transfer new reward tokens into the contract
     @dev Only callable by the distributor. Reward tokens are distributed
-         evenly between receivers, over `reward_duration` seconds.
+         between receivers according to the ratio set, over `reward_duration` seconds.
     @param _amount Amount of reward tokens to add
     """
     assert msg.sender == self.distributor, "dev: only distributor"
