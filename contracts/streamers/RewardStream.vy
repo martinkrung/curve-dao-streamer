@@ -48,19 +48,17 @@ def _update_per_receiver_total(_receiver: address) -> uint256:
     @dev Update rewards for every receiver according to his set ratio
     @param _receiver Address of the receiver
     """
-    # test if ratio of all acitve receivers 100
-    self._ratio_test()
-
     total: uint256 = self.reward_receivers[_receiver].total
     count: uint256 = self.receiver_count
     
     if count == 0:
         return total
-    
+
+    self._ratio_test()
+
     ratio: uint256  = 0
     rate: uint256 = 0
     last_time: uint256 = min(block.timestamp, self.period_finish)
-
 
     for receiver_address in self.receivers:
         total = self.reward_receivers[receiver_address].total
@@ -208,6 +206,7 @@ def change_receiver_ratio(_receiver0: address, _ratio0: uint256, _receiver1: add
         self.reward_receivers[_receiver0].ratio = _ratio0
         self.reward_receivers[_receiver1].ratio = _ratio1
                     
+        self._ratio_test()
         self._update_per_receiver_total(_receiver0)
 
 
