@@ -34,7 +34,7 @@ def deploy(network, account):
 
     # deploy = account.deploy(project.RewardForwarderFromArbitrum, reward_receiver, depositors, publish=True)
 
-    deploy = account.deploy(project.RewardForwarderFromArbitrum, reward_receiver, depositors, max_priority_fee="50 gwei", max_fee="100 gwei", publish=True)
+    deploy = account.deploy(project.RewardForwarderFromArbitrum, reward_receiver, depositors, max_priority_fee="1000 wei", max_fee="1 gwei", gas_limit="100000")
 
 
 @cli.command(cls=NetworkBoundCommand)
