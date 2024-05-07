@@ -9,11 +9,9 @@ from eth._utils.address import generate_contract_address
 from eth_utils import to_checksum_address, to_canonical_address
 from datetime import datetime
 
-BASE_TOKEN_ADDRESS = os.getenv('BASE_TOKEN_ADDRESS')
-TREASURY_ADDRESS = os.getenv('TREASURY_ADDRESS')
-COLLECTOR_ADDRESS = os.getenv('COLLECTOR_ADDRESS')
+# some constants from .env if needed
+# COLLECTOR_ADDRESS = os.getenv('COLLECTOR_ADDRESS')
 
-print(BASE_TOKEN_ADDRESS)
 # account = accounts.load(DEPLOY_NAME)
 
 @click.group(short_help="Deploy the project")
@@ -44,5 +42,4 @@ def publish(network, account):
     print(account)
     print(network)
 
-
-    # networks.provider.network.explorer.publish_contract("0x4259F04C42a2CEB0183C35B239C5C5BF6570b1C4")
+    networks.provider.network.explorer.publish_contract("")
